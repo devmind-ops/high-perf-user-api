@@ -1,49 +1,73 @@
-# High Performance User API
+User Data API - High Performance Service
+This is an expert-level Express.js API developed in TypeScript, designed to handle high-traffic user data requests with advanced caching, request coalescing, and sophisticated rate limiting.
 
-A high-performance Express.js API demonstrating advanced patterns for concurrency, caching, and rate limiting in TypeScript.
 
-## Features
+🚀 Getting Started
+Install dependencies:
 
-### 1. Request Coalescing (Concurrency Handling)
-To prevent "thundering herd" problems where multiple concurrent requests for the same resource overwhelm the database, we implement **Request Coalescing**.
-- **Logic**: When a request comes in for a User ID, we check if there is arguably an ongoing fetch operation for that ID.
-- **Implementation**: We use a `Map<string, Promise<User>>` to store inflight requests. Subsequent requests for the same ID await the *same* promise instead of triggering a new database call.
-- **Benefit**: 100 simultaneous requests for `User:1` result in **1 database call**.
+Bash
 
-### 2. Burst Rate Limiting (Token Bucket)
-We implement a custom **Token Bucket** algorithm for rate limiting.
-- **Rules**:
-    - **Capacity**: 5 tokens (max burst of 5 requests).
-    - **Refill Rate**: 10 requests/minute (approx 1 token every 6 seconds).
-- **Behavior**:
-    - A user can burst up to 5 requests instantly.
-    - After depleting tokens, they must wait for the bucket to refill.
-    - Excess requests receive a `429 Too Many Requests` status.
+pnpm install
+Run the server:
 
-### 3. LRU Cache
-An in-memory Least Recently Used (LRU) cache stores user data.
-- **Eviction**: Removes least recently accessed items when size limit is reached.
-- **TTL**: Entries expire after 60 seconds.
-- **Stale Cleanup**: A background task runs every 10 seconds to proactively remove expired entries.
+Bash
 
-### 4. Async Order Processing
-A simulated asynchronous queue ensures database operations are processed in a controlled manner, mimicking a 200ms DB latency.
+pnpm dev
+The API will be available at http://localhost:3000.
 
-## API Endpoints
 
-- `GET /users/:id` - Fetch user (Cached + Coalesced)
-- `POST /users` - Create user
-- `DELETE /cache` - Clear cache
-- `GET /cache-status` - View cache stats
 
-## Setup & Run
+🧠 System Architecture & Strategies
+Advanced LRU Caching
+To optimize performance, I implemented an In-Memory Least Recently Used (LRU) Cache .
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
 
-2. Run the server:
-   ```bash
-   npx ts-node src/server.ts
-   ```
+TTL (Time to Live): Data is stored for exactly 60 seconds before invalidation.
+
+
+Background Cleanup: A background task automatically clears stale entries to prevent memory leaks.
+
+
+Stats: The GET /cache-status endpoint provides real-time metrics on hits, misses, and current size.
+
+
+Request Coalescing (Concurrency Control)
+To prevent "cache stampedes" or redundant database hits, I implemented Request Coalescing.
+
+If multiple concurrent requests arrive for the same userId, only the first request triggers the 200ms simulated database call.
+
+
+Subsequent requests for that same ID "subscribe" to the first request's promise, returning the result once it completes.
+
+Sophisticated Rate Limiting
+The API uses a custom rate-limiting middleware designed to handle burst traffic.
+
+
+General Limit: 10 requests per minute.
+
+
+Burst Capacity: Allows for a burst of 5 requests within a tight 10-second window.
+
+
+Status: Returns a 429 Too Many Requests status code with a descriptive message when limits are breached.
+
+
+
+
+🛠️ API Endpoints
+
+GET /users/:id: Retrieve user data (cached/coalesced).
+
+
+POST /users: Simulate user creation and update the cache .
+
+
+GET /cache-status: View real-time cache performance and average response times.
+
+
+DELETE /cache: Manually purge the entire cache.
+
+
+
+✅ Testing
+You can measure the caching effect by comparing response times between the first request (~200ms) and subsequent requests (<10ms). High traffic can be simulated to test the burst rate limiter.
